@@ -1,7 +1,12 @@
 streamlit
 pandas
-numpy<2
-scikit-learn==1.6.1
-tensorflow==2.18.1
+numpy
+scikit-learn
 joblib
-h5py
+matplotlib
+seaborn
+scipy
+pydeck
+Pillow
+google-genai
+requests
