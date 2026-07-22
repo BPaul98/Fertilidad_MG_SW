@@ -44,10 +44,37 @@ if archivo_subido is not None:
             try:
                 # Extraer solo las variables numéricas (asumiendo que las columnas son los elementos químicos)
                 # En producción, deberías definir explícitamente tu lista de 38 'elements'
-                datos_numericos = df_input.select_dtypes(include=[np.number])
-                
-                # Preprocesamiento idéntico al entrenamiento (Log10 + StandardScaler)
-                datos_log = np.log10(datos_numericos + 1e-5)
+                datos_numericos = datos.apply(pd.to_numeric, errors="coerce")
+datos_numericos = datos_numericos.replace([np.inf, -np.inf], np.nan)
+
+if datos_numericos.isna().any().any():
+    st.error(
+        "El archivo contiene celdas vacías o valores no numéricos."
+    )
+    st.stop()
+
+datos_corregidos = datos_numericos.copy()
+
+for columna in datos_corregidos.columns:
+    positivos = datos_corregidos.loc[
+        datos_corregidos[columna] > 0,
+        columna
+    ]
+
+    if positivos.empty:
+        st.error(
+            f"La columna '{columna}' no contiene valores positivos."
+        )
+        st.stop()
+
+    reemplazo = positivos.min() / 2
+
+    datos_corregidos.loc[
+        datos_corregidos[columna] <= 0,
+        columna
+    ] = reemplazo
+
+datos_log = np.log10(datos_corregidos)
                 datos_escalados = scaler.transform(datos_log)
                 
                 # Predicción del modelo
