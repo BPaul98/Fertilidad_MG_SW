@@ -44,10 +44,84 @@ if archivo_subido is not None:
             try:
                 # Extraer solo las variables numéricas (asumiendo que las columnas son los elementos químicos)
                 # En producción, deberías definir explícitamente tu lista de 38 'elements'
-                datos_numericos = df_input.select_dtypes(include=[np.number])
+                # Recuperar los nombres y el orden de las variables usadas
+                # durante el entrenamiento del StandardScaler
+                if hasattr(scaler, "feature_names_in_"):
+                    elementos_esperados = list(scaler.feature_names_in_)
+                else:
+                    st.error(
+                        "El scaler no conserva los nombres de las variables utilizadas "
+                        "durante el entrenamiento."
+                    )
+                    st.stop()
                 
-                # Preprocesamiento idéntico al entrenamiento (Log10 + StandardScaler)
+                # Limpiar espacios accidentales en los encabezados del archivo
+                df_input.columns = df_input.columns.astype(str).str.strip()
+                
+                # Identificar diferencias entre el archivo y el entrenamiento
+                columnas_faltantes = [
+                    columna
+                    for columna in elementos_esperados
+                    if columna not in df_input.columns
+                ]
+                
+                columnas_adicionales = [
+                    columna
+                    for columna in df_input.select_dtypes(include=[np.number]).columns
+                    if columna not in elementos_esperados
+                ]
+                
+                # Detener el procesamiento si faltan elementos químicos
+                if columnas_faltantes:
+                    st.error(
+                        "El archivo no contiene todos los elementos químicos requeridos."
+                    )
+                    st.write("Columnas faltantes:", columnas_faltantes)
+                    st.stop()
+                
+                # Informar sobre columnas numéricas adicionales
+                if columnas_adicionales:
+                    st.warning(
+                        "Se ignorarán las siguientes columnas numéricas porque no fueron "
+                        "utilizadas durante el entrenamiento:"
+                    )
+                    st.write(columnas_adicionales)
+                
+                # Seleccionar exactamente las variables utilizadas durante el entrenamiento
+                # y conservar el mismo orden
+                datos_numericos = df_input[elementos_esperados].copy()
+                
+                # Convertir valores a formato numérico
+                datos_numericos = datos_numericos.apply(
+                    pd.to_numeric,
+                    errors="coerce"
+                )
+                
+                # Comprobar valores vacíos o no numéricos
+                if datos_numericos.isna().any().any():
+                    columnas_con_problemas = datos_numericos.columns[
+                        datos_numericos.isna().any()
+                    ].tolist()
+                
+                    st.error(
+                        "Existen valores vacíos o no numéricos en las variables químicas."
+                    )
+                    st.write("Columnas con problemas:", columnas_con_problemas)
+                    st.stop()
+                
+                # Comprobar valores incompatibles con la transformación logarítmica
+                if (datos_numericos + 1e-5 <= 0).any().any():
+                    st.error(
+                        "Existen concentraciones negativas incompatibles con log10(x + 1e-5)."
+                    )
+                    st.stop()
+                
+                # Aplicar el mismo preprocesamiento del entrenamiento
                 datos_log = np.log10(datos_numericos + 1e-5)
+                
+                # Mantener nombres y orden antes de transformar
+                datos_log = datos_log[elementos_esperados]
+                
                 datos_escalados = scaler.transform(datos_log)
                 
                 # Predicción del modelo
