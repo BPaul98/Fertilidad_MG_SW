@@ -41,7 +41,7 @@ if archivo_subido is not None:
     st.subheader("2. Procesamiento y Predicción")
     if st.button("Ejecutar Red Neuronal"):
         with st.spinner('Evaluando firmas multivariadas...'):
-                try:
+            try:
                 # Extraer solo las variables numéricas (asumiendo que las columnas son los elementos químicos)
                 # En producción, deberías definir explícitamente tu lista de 38 'elements'
                 datos_numericos = df_input.select_dtypes(include=[np.number])
