@@ -1,6 +1,7 @@
 streamlit
 pandas
-numpy
+numpy<2
 scikit-learn
-tensorflow
-openpyxl
+tensorflow==2.18.1
+joblib
+h5py
