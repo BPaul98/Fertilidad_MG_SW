@@ -1,7 +1,7 @@
 streamlit
 pandas
 numpy<2
-scikit-learn
+scikit-learn==1.6.1
 tensorflow==2.18.1
 joblib
 h5py
