@@ -14,7 +14,7 @@ st.markdown("Plataforma de procesamiento masivo para bases de datos litogeoquím
 
 @st.cache_resource
 def cargar_modelos():
-    scaler = joblib.load('modelo_fertilidad.pkl')
+    scaler = joblib.load('scaler_geoquimico.pkl')
     modelo = load_model("modelo_fertilidad.h5", compile=False)
     return scaler, modelo
 
