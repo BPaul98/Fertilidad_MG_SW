@@ -42,96 +42,41 @@ if archivo_subido is not None:
     if st.button("Ejecutar Red Neuronal"):
         with st.spinner('Evaluando firmas multivariadas...'):
             try:
-    # Obtener el orden de variables utilizado durante el entrenamiento
-    if hasattr(scaler, "feature_names_in_"):
-        columnas_modelo = list(scaler.feature_names_in_)
-    else:
-        st.error(
-            "El scaler no conserva los nombres de las variables del entrenamiento. "
-            "Debes declarar manualmente la lista columnas_modelo."
-        )
-        st.stop()
-
-    # Limpiar espacios en los nombres de las columnas del archivo
-    df.columns = df.columns.astype(str).str.strip()
-
-    # Comprobar columnas faltantes
-    columnas_faltantes = [
-        columna
-        for columna in columnas_modelo
-        if columna not in df.columns
-    ]
-
-    if columnas_faltantes:
-        st.error(
-            "Faltan las siguientes columnas requeridas por el modelo: "
-            + ", ".join(columnas_faltantes)
-        )
-        st.stop()
-
-    # Seleccionar y ordenar exactamente como en el entrenamiento
-    datos_modelo = df[columnas_modelo].copy()
-
-    # Convertir las variables a formato numérico
-    datos_modelo = datos_modelo.apply(
-        pd.to_numeric,
-        errors="coerce"
-    )
-
-    # Convertir infinitos en valores vacíos
-    datos_modelo = datos_modelo.replace(
-        [np.inf, -np.inf],
-        np.nan
-    )
-
-    # Validar valores vacíos o no numéricos
-    if datos_modelo.isna().any().any():
-        columnas_invalidas = datos_modelo.columns[
-            datos_modelo.isna().any()
-        ].tolist()
-
-        st.error(
-            "Existen valores vacíos o no numéricos en: "
-            + ", ".join(columnas_invalidas)
-        )
-        st.stop()
-
-    # Corregir valores iguales o menores que cero antes de log10
-    datos_corregidos = datos_modelo.copy()
-
-    for columna in columnas_modelo:
-        valores_positivos = datos_corregidos.loc[
-            datos_corregidos[columna] > 0,
-            columna
-        ]
-
-        if valores_positivos.empty:
-            st.error(
-                f"La columna '{columna}' no contiene valores positivos."
-            )
-            st.stop()
-
-        # Sustituir <= 0 por la mitad del menor valor positivo
-        valor_reemplazo = valores_positivos.min() / 2
-
-        datos_corregidos.loc[
-            datos_corregidos[columna] <= 0,
-            columna
-        ] = valor_reemplazo
-
-    # Aplicar log10 sin ceros, negativos, infinitos ni NaN
-    datos_log = np.log10(datos_corregidos)
-
-    # Conservar nombres y orden después de la transformación
-    datos_log = pd.DataFrame(
-        datos_log,
-        columns=columnas_modelo,
-        index=datos_corregidos.index
-    )
-
-    # Escalar y predecir
-    datos_escalados = scaler.transform(datos_log)
-    predicciones = modelo_nn.predict(datos_escalados)
-
-except Exception as e:
-    st.error(f"Error durante el procesamiento: {e}")
+                try:
+                # Extraer solo las variables numéricas (asumiendo que las columnas son los elementos químicos)
+                # En producción, deberías definir explícitamente tu lista de 38 'elements'
+                datos_numericos = df_input.select_dtypes(include=[np.number])
+                
+                # Preprocesamiento idéntico al entrenamiento (Log10 + StandardScaler)
+                datos_log = np.log10(datos_numericos + 1e-5)
+                datos_escalados = scaler.transform(datos_log)
+                
+                # Predicción del modelo
+                probabilidades = modelo_nn.predict(datos_escalados)
+                
+                # Añadir los resultados al DataFrame original
+                df_input['Probabilidad_Fertilidad'] = probabilidades.flatten()
+                df_input['Clasificacion_IA'] = np.where(df_input['Probabilidad_Fertilidad'] > 0.5, 'Fértil', 'Estéril/Artefacto')
+                
+                st.success("¡Clasificación completada con éxito!")
+                
+                # Mostrar la tabla interactiva en la web
+                st.dataframe(df_input.head(15))
+                
+                # =====================================================================
+                # EXPORTACIÓN DE RESULTADOS
+                # =====================================================================
+                st.subheader("3. Descarga de Resultados")
+                
+                # Preparar el CSV en memoria para la descarga
+                csv_buffer = df_input.to_csv(index=False).encode('utf-8')
+                
+                st.download_button(
+                    label="Descargar Base de Datos Clasificada (CSV)",
+                    data=csv_buffer,
+                    file_name="predicciones_fertilidad.csv",
+                    mime="text/csv"
+                )
+                
+            except Exception as e:
+                st.error(f"Error de dimensionalidad: Asegúrate de que el archivo contenga los mismos elementos químicos del entrenamiento. Detalles: {e}")
