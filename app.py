@@ -78,15 +78,6 @@ if archivo_subido is not None:
                     )
                     st.write("Columnas faltantes:", columnas_faltantes)
                     st.stop()
-                
-                # Informar sobre columnas numéricas adicionales
-                if columnas_adicionales:
-                    st.warning(
-                        "Se ignorarán las siguientes columnas numéricas porque no fueron "
-                        "utilizadas durante el entrenamiento:"
-                    )
-                    st.write(columnas_adicionales)
-                
                 # Seleccionar exactamente las variables utilizadas durante el entrenamiento
                 # y conservar el mismo orden
                 datos_numericos = df_input[elementos_esperados].copy()
